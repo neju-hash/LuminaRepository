@@ -396,7 +396,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? _card.withOpacity(0.25) : Colors.transparent,
+          color: selected ? _card.withValues(alpha: 0.25) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(

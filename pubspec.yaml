@@ -36,7 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^9.0.0
   image_picker: ^1.2.3
-  dotted_border: ^3.1.0 
+  dotted_border: ^3.1.0
+  google_mlkit_text_recognition: ^0.13.0 
 
 dev_dependencies:
   flutter_test:
