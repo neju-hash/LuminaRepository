@@ -2,7 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'calculator.dart';
+
+import 'checking.dart';
 
 void main(){
   runApp(
@@ -116,7 +117,7 @@ class _ScanScreenState extends State<ScanScreen> {
                   onPressed: () {
                     Navigator.push(
                       context, 
-                      MaterialPageRoute(builder: (context)=>GwaScreen()),);
+                      MaterialPageRoute(builder: (context)=> const CheckingScreen()),);
                   },
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(280, 70),

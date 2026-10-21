@@ -34,7 +34,7 @@ class WelcomeScreen extends StatelessWidget {
         backgroundColor: Colors.transparent, 
         body: Center(
           child: Column(
-            mainAxisAlig nment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(

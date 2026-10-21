@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # lumina_application
 
 A new Flutter project.
@@ -15,3 +16,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# LuminaRepository
+An app for STI students to help with schedules and school tasks, it includes notifications for schedules, tasks and reminders. It has an interactive dashboard to see upcoming deadlines. It has an built-in AI for creating quizess. Built on html css &amp; flutter
+>>>>>>> a848542d8018de473cafbe97a2f4bebafd424603
