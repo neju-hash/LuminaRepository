@@ -99,7 +99,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 50),
                       foregroundColor: _light,
-                      side: BorderSide(color: _light.withOpacity(0.3), width: 1.5),
+                      side: BorderSide(color: _light.withValues(alpha: 0.3), width: 1.5),
                       textStyle: const TextStyle(
                         fontFamily: 'DMSans',
                         fontSize: 15,
@@ -145,7 +145,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: _light.withOpacity(0.3),
+          color: _light.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -202,7 +202,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: _light.withOpacity(0.3), width: 1.5),
+              borderSide: BorderSide(color: _light.withValues(alpha: 0.3), width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -236,7 +236,7 @@ class _CheckingScreenState extends State<CheckingScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(Radius.circular(15.0)),
           side: outlined
-              ? BorderSide(color: _light.withOpacity(0.3), width: 1.5)
+              ? BorderSide(color: _light.withValues(alpha: 0.3), width: 1.5)
               : BorderSide.none,
         ),
       ),

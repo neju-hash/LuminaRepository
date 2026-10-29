@@ -124,7 +124,7 @@ class WelcomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context, 
-                      MaterialPageRoute(builder: (context)=>ScanScreen()),);
+                      MaterialPageRoute(builder: (context)=> const ScanScreen()),);
                   },
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(280, 70),

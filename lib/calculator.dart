@@ -1,57 +1,117 @@
 import 'package:flutter/material.dart';
 
+class SubjectGrade {
+  final String subjectName;
+  final TextEditingController prelimController;
+  final TextEditingController midtermController;
+  final TextEditingController preFinalController;
+  final TextEditingController finalController;
+
+  SubjectGrade({required this.subjectName})
+      : prelimController = TextEditingController(),
+        midtermController = TextEditingController(),
+        preFinalController = TextEditingController(),
+        finalController = TextEditingController();
+
+  void dispose() {
+    prelimController.dispose();
+    midtermController.dispose();
+    preFinalController.dispose();
+    finalController.dispose();
+  }
+
+  double? calculateSubjectAverage() {
+    final double? prelim = double.tryParse(prelimController.text);
+    final double? midterm = double.tryParse(midtermController.text);
+    final double? preFinal = double.tryParse(preFinalController.text);
+    final double? finals = double.tryParse(finalController.text);
+
+    if (prelim != null && midterm != null && preFinal != null && finals != null) {
+      return (prelim + midterm + preFinal + finals * 2) / 5;
+    }
+    return null;
+  }
+
+  void clear() {
+    prelimController.clear();
+    midtermController.clear();
+    preFinalController.clear();
+    finalController.clear();
+  }
+}
+
 class GwaScreen extends StatefulWidget {
-  const GwaScreen({super.key});
+  final List<String>? subjects; // List of subjects from RAF upload
+
+  const GwaScreen({super.key, this.subjects});
 
   @override
   State<GwaScreen> createState() => _GwaScreenState();
 }
 
 class _GwaScreenState extends State<GwaScreen> {
-  final TextEditingController _prelimController = TextEditingController();
-  final TextEditingController _midtermController = TextEditingController();
-  final TextEditingController _preFinalController = TextEditingController();
-  final TextEditingController _finalController = TextEditingController();
-
+  List<SubjectGrade> _subjectGrades = [];
   double? _calculatedGwa;
 
-  void _calculateGwa() {
-    final double? prelim = double.tryParse(_prelimController.text);
-    final double? midterm = double.tryParse(_midtermController.text);
-    final double? preFinal = double.tryParse(_preFinalController.text);
-    final double? finals = double.tryParse(_finalController.text);
+  @override
+  void initState() {
+    super.initState();
+    _initializeSubjects();
+  }
 
-    if (prelim != null && midterm != null && preFinal != null && finals != null) {
+  void _initializeSubjects() {
+    // If subjects are provided from RAF, use them
+    // Otherwise, use default subjects for testing
+    final List<String> subjects = widget.subjects ?? [
+      'Application Development',
+      'Mobile Programming',
+    ];
+
+    _subjectGrades = subjects.map((subject) => SubjectGrade(subjectName: subject)).toList();
+  }
+
+  void _calculateGwa() {
+    List<double> subjectAverages = [];
+    List<String> incompleteSubjects = [];
+
+    for (var subject in _subjectGrades) {
+      final average = subject.calculateSubjectAverage();
+      if (average != null) {
+        subjectAverages.add(average);
+      } else {
+        incompleteSubjects.add(subject.subjectName);
+      }
+    }
+
+    if (incompleteSubjects.isEmpty && subjectAverages.isNotEmpty) {
       setState(() {
-        _calculatedGwa = (prelim + midterm + preFinal + finals*2) / 5;
+        _calculatedGwa = subjectAverages.reduce((a, b) => a + b) / subjectAverages.length;
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter valid grades for all fields.'),
+        SnackBar(
+          content: Text(
+            incompleteSubjects.isEmpty
+                ? 'Please add subjects first.'
+                : 'Please enter valid grades for: ${incompleteSubjects.join(", ")}',
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
     }
   }
 
-  // Clear function tied to the trash icon button
-  void _clearAllFields() {
+  void _clearSubject(int index) {
     setState(() {
-      _prelimController.clear();
-      _midtermController.clear();
-      _preFinalController.clear();
-      _finalController.clear();
-      _calculatedGwa = null; // Hide the result popping container
+      _subjectGrades[index].clear();
     });
   }
 
   @override
   void dispose() {
-    _prelimController.dispose();
-    _midtermController.dispose();
-    _preFinalController.dispose();
-    _finalController.dispose();
+    for (var subject in _subjectGrades) {
+      subject.dispose();
+    }
     super.dispose();
   }
 
@@ -67,95 +127,38 @@ class _GwaScreenState extends State<GwaScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: const Text(
-                  "GWA Calculator",
-                  style: TextStyle(
-                    color: Color.fromARGB(255, 197, 215, 255),
-                    fontFamily: 'DMSans',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "GWA Calculator",
+              style: TextStyle(
+                color: Color.fromARGB(255, 197, 215, 255),
+                fontFamily: 'DMSans',
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 25),
+            ),
+            const SizedBox(height: 25),
 
-              // Card Container
-              Container(
-                width: 340,
-                padding: const EdgeInsets.all(20.0),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: const Color.fromARGB(255, 197, 215, 255).withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Heading Row containing the title and the clean trash button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Application Development",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 197, 215, 255),
-                            fontFamily: 'DMSans',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        // Small clickable trash icon
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.grey,
-                            size: 20,
-                          ),
-                          onPressed: _clearAllFields,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 15),
-                    
-                    // Row 1: Prelim and Midterm
-                    Row(
-                      children: [
-                        Expanded(child: _buildGradeField("Prelim", _prelimController)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildGradeField("Midterm", _midtermController)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Row 2: Pre-finals and Finals
-                    Row(
-                      children: [
-                        Expanded(child: _buildGradeField("Pre-finals", _preFinalController)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildGradeField("Finals", _finalController)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
+            // Dynamic Subject Cards
+            ..._subjectGrades.asMap().entries.map((entry) {
+              int index = entry.key;
+              SubjectGrade subject = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _buildSubjectCard(subject, index),
+              );
+            }),
 
-              // Popping Container: Appears above the button on calculation
-              if (_calculatedGwa != null)
-                Container(
+            const SizedBox(height: 10),
+
+            // Popping Container: Appears above the button on calculation
+            if (_calculatedGwa != null)
+              Center(
+                child: Container(
                   width: 280,
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   margin: const EdgeInsets.only(bottom: 20),
@@ -163,7 +166,7 @@ class _GwaScreenState extends State<GwaScreen> {
                     color: const Color.fromARGB(255, 5, 14, 36),
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(
-                      color: const Color.fromARGB(255, 197, 215, 255).withOpacity(0.3),
+                      color: const Color.fromARGB(76, 197, 215, 255),
                       width: 1.0,
                     ),
                   ),
@@ -192,9 +195,11 @@ class _GwaScreenState extends State<GwaScreen> {
                     ],
                   ),
                 ),
+              ),
 
-              // Calculate Button
-              ElevatedButton(
+            // Calculate Button
+            Center(
+              child: ElevatedButton(
                 onPressed: _calculateGwa,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(280, 70),
@@ -211,9 +216,78 @@ class _GwaScreenState extends State<GwaScreen> {
                 ),
                 child: const Text('Calculate'),
               ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubjectCard(SubjectGrade subject, int index) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: const Color.fromARGB(76, 197, 215, 255),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Heading Row containing the subject name and the clear trash button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  subject.subjectName,
+                  style: const TextStyle(
+                    color: Color.fromARGB(255, 197, 215, 255),
+                    fontFamily: 'DMSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // Small clickable trash icon
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.grey,
+                  size: 20,
+                ),
+                onPressed: () => _clearSubject(index),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 15),
+
+          // Row 1: Prelim and Midterm
+          Row(
+            children: [
+              Expanded(child: _buildGradeField("Prelim", subject.prelimController)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildGradeField("Midterm", subject.midtermController)),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Row 2: Pre-finals and Finals
+          Row(
+            children: [
+              Expanded(child: _buildGradeField("Pre-finals", subject.preFinalController)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildGradeField("Finals", subject.finalController)),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -238,20 +312,26 @@ class _GwaScreenState extends State<GwaScreen> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           textAlign: TextAlign.center,
           style: const TextStyle(
-              color: Colors.white, 
-              fontFamily: 'DMSans',
-              fontSize: 18,
-              fontWeight: FontWeight.bold
+            color: Colors.white,
+            fontFamily: 'DMSans',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: const Color.fromARGB(255, 197, 215, 255).withOpacity(0.3), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color.fromARGB(76, 197, 215, 255),
+                width: 1.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color.fromARGB(255, 197, 215, 255), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color.fromARGB(255, 197, 215, 255),
+                width: 1.5,
+              ),
             ),
             filled: true,
             fillColor: Colors.transparent,
