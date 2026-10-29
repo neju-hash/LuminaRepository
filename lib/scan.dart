@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
+import 'schedule_input.dart';
 import 'calculator.dart';
 
 void main(){
@@ -122,7 +123,26 @@ class _ScanScreenState extends State<ScanScreen> {
     return subjects;
   }
 
-  void proceedToCalculator() {
+  void proceedToScheduleInput() {
+    if (extractedSubjects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please upload a RAF image first to extract subjects.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScheduleInputScreen(subjects: extractedSubjects),
+      ),
+    );
+  }
+
+  void proceedDirectlyToCalculator() {
     if (extractedSubjects.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -336,9 +356,9 @@ class _ScanScreenState extends State<ScanScreen> {
 
               const SizedBox(height: 20),
 
-              // Next button
+              // Add Schedule button
               ElevatedButton( 
-                onPressed: isProcessing ? null : proceedToCalculator,
+                onPressed: isProcessing ? null : proceedToScheduleInput,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(280, 70),
                   backgroundColor: const Color.fromARGB(255, 5, 14, 36),
@@ -352,7 +372,23 @@ class _ScanScreenState extends State<ScanScreen> {
                     borderRadius: BorderRadius.all(Radius.circular(15.0)),
                   ),
                 ),
-                child: const Text('Next'),
+                child: const Text('Add Schedule'),
+              ),
+              
+              const SizedBox(height: 12),
+
+              // Skip to Calculator button
+              TextButton(
+                onPressed: isProcessing ? null : proceedDirectlyToCalculator,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(280, 50),
+                  foregroundColor: Colors.grey,
+                  textStyle: const TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 16,
+                  ),
+                ),
+                child: const Text('Skip to GWA Calculator'),
               ),
               
               const SizedBox(height: 20),
