@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'models/subject_schedule.dart';
+import 'models/schedule_entry.dart';
 
 class ScheduleInputScreen extends StatefulWidget {
   final List<String> subjects;
+  final List<ScheduleEntry>? detectedSchedules;
 
-  const ScheduleInputScreen({super.key, required this.subjects});
+  const ScheduleInputScreen({
+    super.key, 
+    required this.subjects,
+    this.detectedSchedules,
+  });
 
   @override
   State<ScheduleInputScreen> createState() => _ScheduleInputScreenState();
@@ -12,6 +18,8 @@ class ScheduleInputScreen extends StatefulWidget {
 
 class _ScheduleInputScreenState extends State<ScheduleInputScreen> {
   List<SubjectSchedule> _schedules = [];
+  final Map<int, String> _instructors = {}; // index -> instructor name
+  final Map<int, String> _rooms = {}; // index -> room number
 
   @override
   void initState() {
@@ -20,9 +28,118 @@ class _ScheduleInputScreenState extends State<ScheduleInputScreen> {
   }
 
   void _initializeSchedules() {
-    _schedules = widget.subjects
-        .map((subject) => SubjectSchedule(subjectName: subject))
-        .toList();
+    if (widget.detectedSchedules != null && widget.detectedSchedules!.isNotEmpty) {
+      // Pre-fill from detected schedule entries
+      _schedules = [];
+      for (int i = 0; i < widget.detectedSchedules!.length; i++) {
+        final entry = widget.detectedSchedules![i];
+        final schedule = SubjectSchedule(
+          subjectName: entry.subjectName ?? entry.subjectCode ?? 'Unknown Subject',
+        );
+        
+        // Parse and set time if available
+        if (entry.time != null) {
+          final times = _parseTimeRange(entry.time!);
+          if (times != null) {
+            schedule.startTime = times['start'];
+            schedule.endTime = times['end'];
+          }
+        }
+        
+        // Set day if available
+        if (entry.day != null) {
+          schedule.day = entry.day;
+        }
+        
+        // Store instructor and room separately
+        if (entry.instructor != null) {
+          _instructors[i] = entry.instructor!;
+        }
+        if (entry.room != null) {
+          _rooms[i] = entry.room!;
+        }
+        
+        // Auto-detect schedule type from isLab flag or duration
+        if (entry.isLab) {
+          schedule.scheduleType = 'Lab';
+        } else {
+          final suggested = schedule.suggestScheduleType();
+          if (suggested != "Unknown") {
+            schedule.scheduleType = suggested;
+          }
+        }
+        
+        _schedules.add(schedule);
+      }
+    } else {
+      // Fallback to simple subject list
+      _schedules = widget.subjects
+          .map((subject) => SubjectSchedule(subjectName: subject))
+          .toList();
+    }
+  }
+
+  /// Parse time range string like "7:30-9:00" or "7:30 AM - 9:00 AM"
+  Map<String, TimeOfDay>? _parseTimeRange(String timeStr) {
+    try {
+      // Remove extra spaces and normalize
+      final cleaned = timeStr.trim().replaceAll(RegExp(r'\s+'), ' ');
+      
+      // Split by common separators (-, –, —)
+      final parts = cleaned.split(RegExp(r'[-–—]'));
+      if (parts.length != 2) return null;
+      
+      final startStr = parts[0].trim();
+      final endStr = parts[1].trim();
+      
+      final startTime = _parseTime(startStr);
+      final endTime = _parseTime(endStr);
+      
+      if (startTime != null && endTime != null) {
+        return {'start': startTime, 'end': endTime};
+      }
+    } catch (e) {
+      debugPrint('Error parsing time range: $timeStr - $e');
+    }
+    return null;
+  }
+
+  /// Parse single time string like "7:30", "7:30 AM", "09:00"
+  TimeOfDay? _parseTime(String timeStr) {
+    try {
+      // Remove AM/PM and extra spaces
+      var cleaned = timeStr.trim().toUpperCase();
+      final hasAM = cleaned.contains('AM');
+      final hasPM = cleaned.contains('PM');
+      cleaned = cleaned.replaceAll(RegExp(r'[AP]M'), '').trim();
+      
+      // Split by colon
+      final parts = cleaned.split(':');
+      if (parts.length != 2) return null;
+      
+      int hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      
+      // Convert to 24-hour format if needed
+      if (hasPM && hour < 12) {
+        hour += 12;
+      } else if (hasAM && hour == 12) {
+        hour = 0;
+      }
+      
+      // If no AM/PM specified, assume:
+      // 7:00-11:59 = AM
+      // 12:00-6:59 = PM (unless already in 24h format)
+      // 7:00+ = already in 24h format
+      if (!hasAM && !hasPM && hour < 7 && hour != 0) {
+        hour += 12; // Assume afternoon classes
+      }
+      
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (e) {
+      debugPrint('Error parsing time: $timeStr - $e');
+      return null;
+    }
   }
 
   Future<void> _selectTime(BuildContext context, int index, bool isStartTime) async {
@@ -127,14 +244,52 @@ class _ScheduleInputScreenState extends State<ScheduleInputScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "Add time and type for each subject",
-              style: TextStyle(
+            Text(
+              widget.detectedSchedules != null && widget.detectedSchedules!.isNotEmpty
+                  ? "Review and edit detected schedule data"
+                  : "Add time and type for each subject",
+              style: const TextStyle(
                 color: Colors.grey,
                 fontFamily: 'DMSans',
                 fontSize: 14,
               ),
             ),
+            // Show detection success indicator
+            if (widget.detectedSchedules != null && widget.detectedSchedules!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(51, 76, 175, 80), // 0.2 opacity
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 76, 175, 80),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Color.fromARGB(255, 76, 175, 80),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${widget.detectedSchedules!.length} schedule${widget.detectedSchedules!.length > 1 ? 's' : ''} detected automatically',
+                        style: const TextStyle(
+                          color: Color.fromARGB(255, 76, 175, 80),
+                          fontFamily: 'DMSans',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 25),
 
             // Schedule Cards
@@ -325,6 +480,84 @@ class _ScheduleInputScreenState extends State<ScheduleInputScreen> {
                       fontFamily: 'DMSans',
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Day Display (if detected)
+          if (schedule.day != null && schedule.day!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    color: Color.fromARGB(255, 255, 152, 0),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Day: ${schedule.day}',
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 255, 152, 0),
+                      fontFamily: 'DMSans',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Instructor Display (if detected)
+          if (_instructors[index] != null && _instructors[index]!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    color: Color.fromARGB(255, 156, 39, 176),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Instructor: ${_instructors[index]}',
+                      style: const TextStyle(
+                        color: Color.fromARGB(255, 156, 39, 176),
+                        fontFamily: 'DMSans',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Room Display (if detected)
+          if (_rooms[index] != null && _rooms[index]!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.meeting_room_outlined,
+                    color: Color.fromARGB(255, 255, 193, 7),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Room: ${_rooms[index]}',
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 255, 193, 7),
+                      fontFamily: 'DMSans',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
