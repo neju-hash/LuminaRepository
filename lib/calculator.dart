@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'models/schedule_entry.dart';
 
 class SubjectGrade {
   final String subjectName;
@@ -41,9 +42,10 @@ class SubjectGrade {
 }
 
 class GwaScreen extends StatefulWidget {
-  final List<String>? subjects; // List of subjects from RAF upload
+  final List<String>? subjects; // List of subjects from RAF upload (legacy)
+  final List<ScheduleEntry>? scheduleEntries; // Structured schedule data from RAF
 
-  const GwaScreen({super.key, this.subjects});
+  const GwaScreen({super.key, this.subjects, this.scheduleEntries});
 
   @override
   State<GwaScreen> createState() => _GwaScreenState();
@@ -60,14 +62,24 @@ class _GwaScreenState extends State<GwaScreen> {
   }
 
   void _initializeSubjects() {
-    // If subjects are provided from RAF, use them
-    // Otherwise, use default subjects for testing
-    final List<String> subjects = widget.subjects ?? [
-      'Application Development',
-      'Mobile Programming',
-    ];
-
-    _subjectGrades = subjects.map((subject) => SubjectGrade(subjectName: subject)).toList();
+    // Priority: scheduleEntries > subjects > default
+    if (widget.scheduleEntries != null && widget.scheduleEntries!.isNotEmpty) {
+      // Use schedule entries - extract subject names
+      _subjectGrades = widget.scheduleEntries!.map((entry) {
+        final name = entry.subjectName ?? entry.subjectCode ?? 'Unknown Subject';
+        return SubjectGrade(subjectName: name);
+      }).toList();
+    } else if (widget.subjects != null && widget.subjects!.isNotEmpty) {
+      // Fallback to simple subject list
+      _subjectGrades = widget.subjects!.map((subject) => 
+        SubjectGrade(subjectName: subject)).toList();
+    } else {
+      // Default subjects for testing
+      _subjectGrades = [
+        'Application Development',
+        'Mobile Programming',
+      ].map((subject) => SubjectGrade(subjectName: subject)).toList();
+    }
   }
 
   void _calculateGwa() {

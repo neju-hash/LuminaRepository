@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/subject_schedule.dart';
 import 'models/schedule_entry.dart';
+import 'calculator.dart';
 
 class ScheduleInputScreen extends StatefulWidget {
   final List<String> subjects;
@@ -202,9 +203,28 @@ class _ScheduleInputScreenState extends State<ScheduleInputScreen> {
       return;
     }
 
-    // Navigate to calculator with schedules
-    // You can pass schedules data to calculator if needed
-    Navigator.pop(context, _schedules);
+    // Convert SubjectSchedule to ScheduleEntry for calculator
+    final scheduleEntries = _schedules.map((schedule) {
+      return ScheduleEntry(
+        subjectCode: null,
+        subjectName: schedule.subjectName,
+        time: schedule.getTimeRange(),
+        day: schedule.day,
+        instructor: _instructors[_schedules.indexOf(schedule)],
+        room: _rooms[_schedules.indexOf(schedule)],
+        units: null,
+        isLab: schedule.scheduleType == 'Lab',
+        confidence: 1.0,
+      );
+    }).toList();
+
+    // Navigate to calculator with schedule entries
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GwaScreen(scheduleEntries: scheduleEntries),
+      ),
+    );
   }
 
   @override

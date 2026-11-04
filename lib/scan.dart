@@ -155,8 +155,29 @@ class _ScanScreenState extends State<ScanScreen> {
             scheduleEntries: scheduleEntries,
             onSave: (List<ScheduleEntry> entries) {
               // Handle saved schedule entries
-              // Navigate to schedule input or main screen
+              // User can navigate to schedule input or calculator
               Navigator.popUntil(context, (route) => route.isFirst);
+              
+              // Show success message with options
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${entries.length} schedule entries saved!'),
+                    backgroundColor: Colors.green,
+                    action: SnackBarAction(
+                      label: 'View Calculator',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GwaScreen(scheduleEntries: entries),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              }
             },
           ),
         ),
