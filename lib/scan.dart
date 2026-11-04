@@ -5,6 +5,12 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import 'schedule_input.dart';
 import 'calculator.dart';
+import 'services/text_categorizer.dart' as services;
+import 'services/table_detector.dart';
+import 'models/detected_entity.dart';
+import 'models/schedule_entry.dart';
+import 'screens/detection_result_screen.dart';
+import 'screens/schedule_confirmation_screen.dart';
 
 void main(){
   runApp(
@@ -25,7 +31,10 @@ class _ScanScreenState extends State<ScanScreen> {
   File? image;
   final picker = ImagePicker();
   final textRecognizer = TextRecognizer();
+  final textCategorizer = services.TextCategorizer();
+  final tableDetector = TableDetector();
   List<String> extractedSubjects = [];
+  List<DetectedEntity> detectedEntities = [];
   bool isProcessing = false;
 
   @override
@@ -59,19 +68,58 @@ class _ScanScreenState extends State<ScanScreen> {
       final inputImage = InputImage.fromFile(image!);
       final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
 
-      // Extract subject names from the recognized text
-      List<String> subjects = parseSubjectsFromText(recognizedText.text);
+      // Perform intelligent detection using TextCategorizer
+      List<DetectedEntity> entities = [];
+      
+      for (var block in recognizedText.blocks) {
+        for (var line in block.lines) {
+          for (var element in line.elements) {
+            // Get bounding box coordinates
+            final boundingBox = element.boundingBox;
+            
+            // Categorize the text (passing required parameters)
+            final category = textCategorizer.categorizeText(
+              element.text,
+              boundingBox,
+              [], // context - could be enhanced with nearby elements
+            );
+            
+            // Map TextCategorizer EntityType to DetectedEntity EntityType
+            final entityType = _mapEntityType(category);
+            
+            // Create DetectedEntity
+            final entity = DetectedEntity(
+              text: element.text,
+              type: entityType,
+              boundingBox: boundingBox,
+              confidence: element.confidence ?? 0.0,
+            );
+            
+            entities.add(entity);
+          }
+        }
+      }
 
       setState(() {
-        extractedSubjects = subjects;
+        detectedEntities = entities;
         isProcessing = false;
       });
 
-      if (subjects.isEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No subjects found in the image. Please try a clearer photo.'),
-            backgroundColor: Colors.orange,
+      // Navigate to DetectionResultScreen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetectionResultScreen(
+              imageFile: image!,
+              detectedEntities: entities,
+              onRetake: () {
+                Navigator.pop(context);
+              },
+              onConfirm: () {
+                _extractScheduleAndNavigate(recognizedText);
+              },
+            ),
           ),
         );
       }
@@ -87,6 +135,63 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         );
       }
+    }
+  }
+
+  void _extractScheduleAndNavigate(RecognizedText recognizedText) {
+    try {
+      // Detect table structure
+      final columns = tableDetector.detectColumns(recognizedText);
+      final rows = tableDetector.detectRows(recognizedText);
+      
+      // Extract schedule data
+      final scheduleEntries = tableDetector.extractScheduleData(columns, rows);
+      
+      // Navigate to ScheduleConfirmationScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScheduleConfirmationScreen(
+            scheduleEntries: scheduleEntries,
+            onSave: (List<ScheduleEntry> entries) {
+              // Handle saved schedule entries
+              // Navigate to schedule input or main screen
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error extracting schedule: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Map TextCategorizer EntityType to DetectedEntity EntityType
+  EntityType _mapEntityType(services.EntityType categorizerType) {
+    switch (categorizerType) {
+      case services.EntityType.subjectCode:
+        return EntityType.SUBJECT;
+      case services.EntityType.time:
+        return EntityType.TIME;
+      case services.EntityType.instructorName:
+        return EntityType.INSTRUCTOR;
+      case services.EntityType.day:
+        return EntityType.DAY;
+      case services.EntityType.roomNumber:
+        return EntityType.ROOM;
+      case services.EntityType.units:
+        return EntityType.UNITS;
+      case services.EntityType.header:
+        return EntityType.HEADER;
+      case services.EntityType.unknown:
+        return EntityType.UNKNOWN;
     }
   }
 
@@ -188,37 +293,105 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column( 
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Image preview container
+              // Image preview container with helpful hints
               SizedBox(
                 height: 340,
                 width: 340,
-                child: image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        image!,
-                        fit: BoxFit.cover, 
-                      ),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: Colors.transparent, 
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color.fromARGB(76, 158, 158, 158),
-                          width: 1.0,
+                child: Stack(
+                  children: [
+                    image != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            image!,
+                            fit: BoxFit.cover, 
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: Colors.transparent, 
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color.fromARGB(76, 158, 158, 158),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Center( 
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.table_chart_outlined,
+                                  color: Colors.grey,
+                                  size: 48,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  "No image uploaded..",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 16,
+                                    fontFamily: 'DMSans',
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 32),
+                                  child: Text(
+                                    "Align RAF table in frame\nEnsure good lighting",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color.fromARGB(153, 158, 158, 158),
+                                      fontSize: 12,
+                                      fontFamily: 'DMSans',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      child: const Center( 
-                        child: Text(
-                          "No image uploaded..",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
+                    // Overlay hint when camera is about to be used
+                    if (image == null)
+                      Positioned(
+                        bottom: 12,
+                        left: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(200, 5, 14, 36),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color.fromARGB(76, 197, 215, 255),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: Color.fromARGB(255, 197, 215, 255),
+                                size: 16,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tip: Use good lighting for best results',
+                                  style: TextStyle(
+                                    color: Color.fromARGB(255, 197, 215, 255),
+                                    fontSize: 11,
+                                    fontFamily: 'DMSans',
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
+                  ],
+                ),
               ),
               
               const SizedBox(height: 20),
@@ -240,7 +413,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       SizedBox(width: 10),
                       Text(
-                        'Extracting subjects...',
+                        'Detecting schedule information...',
                         style: TextStyle(
                           color: Color.fromARGB(255, 197, 215, 255),
                           fontFamily: 'DMSans',
