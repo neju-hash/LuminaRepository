@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Lumina App",
+      "request": "launch",
+      "type": "flutter",
+      "program": "lib/main.dart"
+    }
+  ]
+}

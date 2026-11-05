@@ -96,7 +96,7 @@ class WelcomeScreen extends StatelessWidget {
                       child: TextField(
                         style: const TextStyle(color: Colors.white), // Makes typed text visible
                         decoration: const InputDecoration(
-                          hintText: 'Killua',
+                          hintText: 'KilluaxX',
                           hintStyle: TextStyle(
                             color: Color.fromARGB(193, 143, 153, 175), 
                           ),
